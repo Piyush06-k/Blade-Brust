@@ -1,6 +1,6 @@
 # ⚔️ BLADE BRUST ⚔️
 
-> **Slice Fast. Dodge Faster. No thoughts, just vibes.**
+> **Slice Fast Dodge Faster. No thoughts, just vibes.**
 
 POV : You need a brain break and want to test your reflexes. Blade Brust is a fast-paced, highly responsive browser arcade game built entirely in vanilla code. Get locked in, chain massive combos, and dodge bombs in this neon-infused slasher. 
 
@@ -35,16 +35,9 @@ Pick your poison from three distinct modes:
 *   **Aesthetic Graphics:** Silky smooth canvas rendering with glowing slice trails, drop shadows, and juicy particle bursts.
 *   **Stat Receipts:** At the end of your run, the game pulls out the receipts: tracking your best combo, accuracy percentage, and high score.
 *   **Plays Anywhere:** Fully responsive. Swipe on your phone or slice with your mouse on desktop.
+* Stay locked in and start slicing!
 
 ---
-
-## Let's Cook 🔥
-
-Getting this game running is literally light work. No compiling, no terminal commands. 
-
-1.  Clone or download this repo.
-2.  Double-click `bladebrust.html` to open it in your browser.
-3.  Stay locked in and start slicing!
 
 ##  Support
 
