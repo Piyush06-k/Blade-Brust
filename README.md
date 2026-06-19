@@ -45,3 +45,7 @@ Getting this game running is literally light work. No compiling, no terminal com
 1.  Clone or download this repo.
 2.  Double-click `bladebrust.html` to open it in your browser.
 3.  Stay locked in and start slicing!
+
+##  Support
+
+If you enjoyed this project, consider giving it a star!
