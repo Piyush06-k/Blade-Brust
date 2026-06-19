@@ -41,4 +41,8 @@ Pick your poison from three distinct modes:
 
 ##  Support
 
-If you enjoyed this project, consider giving it a star!
+If you enjoyed this project, consider giving it a star !
+
+---
+
+## Thanks
