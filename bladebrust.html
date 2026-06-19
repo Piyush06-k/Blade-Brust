@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no" />
+<title>Blade Brust</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: #fefae0;
+    color: #0a0a0a;
+    font-family: "Bangers", "Komika Axis", "Impact", "Inter", system-ui, sans-serif;
+    overflow: hidden;
+    user-select: none;
+    touch-action: none;
+  }
+  /* Halftone dot pattern background */
+  body::before {
+    content: "";
+    position: fixed; inset: 0;
+    background-image:
+      radial-gradient(circle at 20% 20%, rgba(255, 60, 130, 0.08) 0, transparent 28%),
+      radial-gradient(circle at 80% 80%, rgba(0, 200, 255, 0.08) 0, transparent 28%),
+      radial-gradient(circle, rgba(0,0,0,0.06) 1px, transparent 1.5px);
+    background-size: auto, auto, 14px 14px;
+    pointer-events: none;
+  }
+  /* Speed-line streaks */
+  body::after {
+    content: "";
+    position: fixed; inset: 0;
+    background: repeating-linear-gradient(
+      45deg,
+      transparent 0,
+      transparent 80px,
+      rgba(0,0,0,0.03) 80px,
+      rgba(0,0,0,0.03) 82px
+    );
+    pointer-events: none;
+  }
+
+  canvas {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    cursor: crosshair;
+    touch-action: none;
+  }
+
+  /* HUD */
+  #hud {
+    position: fixed;
+    top: 16px;
+    left: 16px;
+    right: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    pointer-events: none;
+    z-index: 5;
+    font-variant-numeric: tabular-nums;
+  }
+  .stat {
+    background: #fff;
+    border: 4px solid #0a0a0a;
+    border-radius: 4px;
+    padding: 8px 14px;
+    pointer-events: auto;
+    box-shadow: 5px 5px 0 #0a0a0a;
+    transform: rotate(-2deg);
+    font-family: "Bangers", "Impact", system-ui, sans-serif;
+    letter-spacing: 1px;
+  }
+  .stat:nth-child(2) { transform: rotate(1deg); }
+  .stat:nth-child(3) { transform: rotate(-1deg); }
+  .stat:nth-child(4) { transform: rotate(2deg); }
+  .stat .lbl {
+    color: #b03050;
+    font-size: 13px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    display: block;
+  }
+  .stat .val {
+    color: #0a0a0a;
+    font-size: 30px;
+    font-weight: 400;
+    letter-spacing: 1px;
+    line-height: 1;
+  }
+  .stat.lives .val { color: #d4006e; }
+  .stat.high .val { color: #00a886; }
+  .stat.time .val { color: #f5b800; }
+
+  /* Combo popup */
+  #combo {
+    position: fixed;
+    top: 30%;
+    left: 50%;
+    transform: translateX(-50%) rotate(-8deg);
+    pointer-events: none;
+    text-align: center;
+    z-index: 6;
+    transition: opacity 0.3s ease;
+  }
+  #combo.hidden { opacity: 0; }
+  #combo .num {
+    font-size: 90px;
+    font-family: "Bangers", "Impact", system-ui, sans-serif;
+    color: #f5b800;
+    -webkit-text-stroke: 4px #0a0a0a;
+    text-stroke: 4px #0a0a0a;
+    letter-spacing: 2px;
+    line-height: 1;
+    animation: comboPulse 0.4s ease;
+    text-shadow:
+      6px 6px 0 #d4006e,
+      6px 6px 0 #d4006e;
+  }
+  #combo .label {
+    font-size: 22px;
+    color: #d4006e;
+    font-family: "Bangers", "Impact", system-ui, sans-serif;
+    letter-spacing: 6px;
+    margin-top: -4px;
+    -webkit-text-stroke: 2px #0a0a0a;
+    text-stroke: 2px #0a0a0a;
+  }
+  @keyframes comboPulse {
+    0% { transform: scale(1.6) rotate(-12deg); opacity: 0; }
+    100% { transform: scale(1) rotate(0deg); opacity: 1; }
+  }
+
+  /* Title / overlays */
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(254, 250, 224, 0.94);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    z-index: 10;
+    padding: 24px;
+  }
+  .overlay.hidden { display: none; }
+  .overlay h1 {
+    font-size: clamp(72px, 16vw, 160px);
+    margin: 0;
+    font-family: "Bangers", "Impact", system-ui, sans-serif;
+    color: #f5b800;
+    -webkit-text-stroke: 6px #0a0a0a;
+    text-stroke: 6px #0a0a0a;
+    letter-spacing: clamp(4px, 1vw, 12px);
+    transform: rotate(-3deg);
+    text-shadow:
+      8px 8px 0 #d4006e;
+    line-height: 0.9;
+  }
+  .overlay h2 {
+    font-size: 56px;
+    margin: 0 0 16px;
+    color: #d4006e;
+    font-family: "Bangers", "Impact", system-ui, sans-serif;
+    letter-spacing: 4px;
+    transform: rotate(-2deg);
+    -webkit-text-stroke: 3px #0a0a0a;
+    text-stroke: 3px #0a0a0a;
+  }
+  .overlay .tag {
+    color: #0a0a0a;
+    margin: 12px 0 28px;
+    letter-spacing: 3px;
+    font-size: 18px;
+    font-family: "Bangers", "Impact", system-ui, sans-serif;
+    background: #f5b800;
+    border: 3px solid #0a0a0a;
+    padding: 6px 20px;
+    transform: rotate(1deg);
+    box-shadow: 4px 4px 0 #0a0a0a;
+  }
+  .modes {
+    display: flex;
+    gap: 14px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .mode {
+    background: #fff;
+    border: 4px solid #0a0a0a;
+    color: #0a0a0a;
+    padding: 18px 28px;
+    border-radius: 6px;
+    font-family: "Bangers", "Impact", system-ui, sans-serif;
+    font-size: 18px;
+    letter-spacing: 2px;
+    cursor: pointer;
+    min-width: 150px;
+    transition: transform 0.12s ease;
+    box-shadow: 5px 5px 0 #0a0a0a;
+  }
+  .mode:nth-child(1) { transform: rotate(-3deg); }
+  .mode:nth-child(2) { transform: rotate(2deg); }
+  .mode:nth-child(3) { transform: rotate(-2deg); }
+  .mode:hover { transform: rotate(0deg) translate(-2px, -2px); box-shadow: 7px 7px 0 #0a0a0a; }
+  .mode .mname {
+    color: #d4006e;
+    font-size: 26px;
+    margin-bottom: 4px;
+    -webkit-text-stroke: 2px #0a0a0a;
+    text-stroke: 2px #0a0a0a;
+  }
+  .mode .mdesc {
+    color: #0a0a0a;
+    font-size: 14px;
+    letter-spacing: 1px;
+    font-family: "Inter", system-ui, sans-serif;
+    font-weight: 600;
+  }
+  .help {
+    color: #0a0a0a;
+    font-size: 16px;
+    letter-spacing: 1px;
+    line-height: 1.7;
+    background: #fff;
+    border: 3px solid #0a0a0a;
+    padding: 14px 22px;
+    border-radius: 6px;
+    box-shadow: 4px 4px 0 #0a0a0a;
+    transform: rotate(-1deg);
+    max-width: 600px;
+    font-family: "Inter", system-ui, sans-serif;
+    font-weight: 500;
+  }
+  .help b { color: #d4006e; font-family: "Bangers", "Impact", system-ui, sans-serif; }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 32px;
+    background: #fff;
+    border: 4px solid #0a0a0a;
+    border-radius: 6px;
+    padding: 18px 26px;
+    margin: 0 0 22px;
+    text-align: left;
+    box-shadow: 5px 5px 0 #0a0a0a;
+    transform: rotate(-1deg);
+    min-width: 320px;
+  }
+  .stats-grid .lbl {
+    color: #b03050;
+    font-size: 12px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+  .stats-grid .val {
+    color: #0a0a0a;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    font-family: "Bangers", "Impact", system-ui, sans-serif;
+    font-size: 22px;
+    letter-spacing: 1px;
+  }
+  .bigbtn {
+    background: #d4006e;
+    color: #fff;
+    border: 4px solid #0a0a0a;
+    padding: 16px 40px;
+    border-radius: 6px;
+    font-size: 22px;
+    font-family: "Bangers", "Impact", system-ui, sans-serif;
+    letter-spacing: 4px;
+    cursor: pointer;
+    box-shadow: 6px 6px 0 #0a0a0a;
+    transition: transform 0.1s ease;
+  }
+  .bigbtn:hover { transform: translate(-1px, -1px); box-shadow: 7px 7px 0 #0a0a0a; }
+  .bigbtn:active { transform: translate(3px, 3px); box-shadow: 3px 3px 0 #0a0a0a; }
+
+  /* Mobile */
+  @media (max-width: 600px) {
+    #hud { top: 8px; left: 8px; right: 8px; }
+    .stat { padding: 6px 10px; }
+    .stat .val { font-size: 22px; }
+    #combo .num { font-size: 60px; }
+    .mode { min-width: 120px; padding: 14px 20px; }
+  }
+</style>
+</head>
+<body>
+  <canvas id="game"></canvas>
+
+  <div id="hud">
+    <div class="stat"><span class="lbl">Score</span><span class="val" id="score">0</span></div>
+    <div class="stat time"><span class="lbl" id="modeLbl">Time</span><span class="val" id="time">60</span></div>
+    <div class="stat lives"><span class="lbl">Lives</span><span class="val" id="lives">♥♥♥</span></div>
+    <div class="stat high"><span class="lbl">Best</span><span class="val" id="best">0</span></div>
+  </div>
+
+  <div id="combo" class="hidden">
+    <div class="num" id="comboNum">×3</div>
+    <div class="label">COMBO</div>
+  </div>
+
+  <!-- Title -->
+  <div id="titleScreen" class="overlay">
+    <h1>Blade Brust</h1>
+    <p class="tag">Slice Fast Dodge Faster</p>
+    <div class="modes">
+      <button class="mode" data-mode="classic">
+        <div class="mname">CLASSIC</div>
+        <div class="mdesc">60s · 3 lives</div>
+      </button>
+      <button class="mode" data-mode="zen">
+        <div class="mname">VIBE</div>
+        <div class="mdesc">Endless · No bombs</div>
+      </button>
+      <button class="mode" data-mode="arcade">
+        <div class="mname">ARCADE</div>
+        <div class="mdesc">3 lives · Endless</div>
+      </button>
+    </div>
+    <div class="help">
+      <b>Drag</b> to slice flying shapes ✦ Avoid <b>💣 bombs</b> ✦ Chain slices for combos ✦
+      Find the <b>⭐ golden</b> for bonus points
+    </div>
+  </div>
+
+  <!-- Game over -->
+  <div id="overScreen" class="overlay hidden">
+    <h2>SLICED!</h2>
+    <div class="stats-grid" id="finalStats"></div>
+    <button class="bigbtn" id="againBtn">PLAY AGAIN</button>
+  </div>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+let W = 0, H = 0, DPR = 1;
+
+function resize() {
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  W = window.innerWidth;
+  H = window.innerHeight;
+  canvas.width = W * DPR;
+  canvas.height = H * DPR;
+  canvas.style.width = W + "px";
+  canvas.style.height = H + "px";
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+window.addEventListener("resize", resize);
+resize();
+
+// ---------- Audio ----------
+let actx = null;
+function ensureAudio() {
+  if (!actx) {
+    try { actx = new (window.AudioContext || window.webkitAudioContext)(); }
+    catch (e) {}
+  }
+  if (actx && actx.state === "suspended") actx.resume().catch(() => {});
+}
+function tone(freq, dur = 0.1, type = "triangle", vol = 0.06) {
+  if (!actx) return;
+  const o = actx.createOscillator();
+  const g = actx.createGain();
+  o.type = type;
+  o.frequency.setValueAtTime(freq, actx.currentTime);
+  g.gain.setValueAtTime(vol, actx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + dur);
+  o.connect(g).connect(actx.destination);
+  o.start();
+  o.stop(actx.currentTime + dur + 0.02);
+}
+const SFX = {
+  slice:  () => tone(900 + Math.random() * 400, 0.08, "square", 0.05),
+  combo:  (n) => tone(660 + n * 80, 0.15, "triangle", 0.07),
+  bomb:   () => { tone(120, 0.4, "sawtooth", 0.12); setTimeout(() => tone(60, 0.6, "sawtooth", 0.10), 80); },
+  miss:   () => tone(180, 0.18, "sawtooth", 0.06),
+  golden: () => { tone(1200, 0.1, "triangle", 0.08); setTimeout(() => tone(1600, 0.15, "triangle", 0.08), 70); },
+  start:  () => { tone(440, 0.1, "triangle", 0.06); setTimeout(() => tone(660, 0.12, "triangle", 0.06), 100); setTimeout(() => tone(880, 0.18, "triangle", 0.07), 220); },
+  over:   () => { tone(440, 0.2, "sawtooth", 0.08); setTimeout(() => tone(330, 0.3, "sawtooth", 0.08), 200); setTimeout(() => tone(220, 0.5, "sawtooth", 0.08), 450); },
+};
+
+// ---------- Game state ----------
+const state = {
+  running: false,
+  mode: "classic",      // classic | zen | arcade
+  score: 0,
+  lives: 3,
+  time: 60,
+  best: parseInt(localStorage.getItem("slice_best") || "0", 10),
+  shapes: [],
+  particles: [],
+  trail: [],            // recent pointer positions for slice detection
+  combo: 0,
+  comboTimer: 0,
+  spawnTimer: 0,
+  shake: 0,
+  stats: { sliced: 0, missed: 0, golden: 0, bestCombo: 0 },
+  startTime: 0,
+};
+
+const SHAPE_COLORS = [
+  ["#ff5764", "#c83440"], // red — strawberry
+  ["#ffb347", "#ff7a18"], // orange
+  ["#9be15d", "#3a8a2e"], // green — apple
+  ["#7aa6ff", "#3d6dff"], // blue — berry
+  ["#c084ff", "#7a3dff"], // purple — grape
+  ["#ffd47a", "#c8a040"], // yellow — banana
+];
+
+// ---------- Spawning ----------
+function spawnShape() {
+  const r = 22 + Math.random() * 22;
+  const x = Math.random() * (W - 200) + 100;
+  const y = H + 30;
+  // Arc them up to roughly 35-75% of screen height.
+  const peakY = H * (0.15 + Math.random() * 0.3);
+  // We need vy such that vy^2 / (2*g) = (y - peakY).
+  const g = 1100;
+  const vy = -Math.sqrt(2 * g * (y - peakY));
+  const vx = (Math.random() * 2 - 1) * 250;
+  const colorIdx = Math.floor(Math.random() * SHAPE_COLORS.length);
+  let kind = "fruit";
+  let color = SHAPE_COLORS[colorIdx];
+  // Bombs spawn only outside Zen mode.
+  if (state.mode !== "zen" && Math.random() < 0.13) {
+    kind = "bomb";
+    color = ["#1a1a25", "#000"];
+  } else if (Math.random() < 0.04) {
+    kind = "golden";
+    color = ["#ffd47a", "#c89030"];
+  }
+  state.shapes.push({
+    x, y, vx, vy, r,
+    rot: Math.random() * Math.PI * 2,
+    vrot: (Math.random() - 0.5) * 6,
+    kind,
+    color,
+    alive: true,
+  });
+}
+
+// ---------- Trail / slice detection ----------
+let pointerDown = false;
+function onPointer(e, type) {
+  const x = e.touches ? e.touches[0].clientX : e.clientX;
+  const y = e.touches ? e.touches[0].clientY : e.clientY;
+  if (type === "down") { pointerDown = true; state.trail = []; ensureAudio(); }
+  if (type === "up")   { pointerDown = false; state.trail = []; }
+  if (pointerDown) {
+    state.trail.push({ x, y, t: performance.now() });
+    if (state.trail.length > 18) state.trail.shift();
+    checkSlices();
+  }
+}
+canvas.addEventListener("pointerdown", (e) => { e.preventDefault(); onPointer(e, "down"); });
+canvas.addEventListener("pointermove", (e) => { e.preventDefault(); onPointer(e, "move"); });
+canvas.addEventListener("pointerup",   (e) => { e.preventDefault(); onPointer(e, "up"); });
+canvas.addEventListener("pointercancel", () => { pointerDown = false; state.trail = []; });
+
+function checkSlices() {
+  if (state.trail.length < 2) return;
+  const a = state.trail[state.trail.length - 2];
+  const b = state.trail[state.trail.length - 1];
+  // Skip if barely moved.
+  if (Math.hypot(b.x - a.x, b.y - a.y) < 6) return;
+  let slicedThisStroke = 0;
+  for (const s of state.shapes) {
+    if (!s.alive) continue;
+    if (segmentCircle(a, b, s)) {
+      sliceShape(s, b);
+      slicedThisStroke++;
+    }
+  }
+  if (slicedThisStroke > 1) {
+    // Multi-slice in one stroke: combo bump per extra.
+    state.combo += slicedThisStroke - 1;
+    state.comboTimer = 1.0;
+    showCombo();
+  }
+}
+
+function segmentCircle(a, b, s) {
+  // Closest point on segment AB to circle center, then distance check.
+  const ax = a.x, ay = a.y, bx = b.x, by = b.y;
+  const dx = bx - ax, dy = by - ay;
+  const len2 = dx * dx + dy * dy;
+  if (len2 === 0) return false;
+  let t = ((s.x - ax) * dx + (s.y - ay) * dy) / len2;
+  t = Math.max(0, Math.min(1, t));
+  const px = ax + t * dx, py = ay + t * dy;
+  return Math.hypot(s.x - px, s.y - py) <= s.r;
+}
+
+function sliceShape(s, hitPos) {
+  s.alive = false;
+  if (s.kind === "bomb") {
+    // Lose a life and shake.
+    state.lives--;
+    state.shake = 1.0;
+    state.combo = 0;
+    state.comboTimer = 0;
+    SFX.bomb();
+    bombBurst(s.x, s.y);
+    if (state.lives <= 0) endGame();
+    return;
+  }
+  // Score depends on combo and shape kind.
+  let pts = 1;
+  if (s.kind === "golden") { pts = 10; state.stats.golden++; SFX.golden(); }
+  state.combo++;
+  state.comboTimer = 1.0;
+  if (state.stats.bestCombo < state.combo) state.stats.bestCombo = state.combo;
+  pts *= Math.max(1, Math.floor(state.combo / 3) + 1);
+  state.score += pts;
+  state.stats.sliced++;
+  SFX.slice();
+  if (state.combo >= 3) SFX.combo(state.combo);
+  // Spawn slice halves and juice.
+  spawnHalves(s, hitPos);
+  spawnJuice(s);
+  if (state.combo > 1) showCombo();
+  showFloatScore(s.x, s.y, "+" + pts);
+  updateHud();
+}
+
+function spawnHalves(s, hit) {
+  // Two flying halves with different angles; rendered as filled half-circles.
+  for (let i = 0; i < 2; i++) {
+    state.particles.push({
+      kind: "half",
+      x: s.x, y: s.y,
+      vx: s.vx * 0.6 + (i === 0 ? -180 : 180) + (Math.random() - 0.5) * 60,
+      vy: s.vy * 0.5 - 100 - Math.random() * 80,
+      r: s.r,
+      rot: s.rot,
+      vrot: (Math.random() - 0.5) * 12,
+      life: 1.4,
+      max: 1.4,
+      color: s.color,
+      side: i === 0 ? -1 : 1,
+    });
+  }
+}
+
+function spawnJuice(s) {
+  // Splatter of small colored particles.
+  const count = s.kind === "golden" ? 28 : 16;
+  for (let i = 0; i < count; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const speed = 80 + Math.random() * 320;
+    state.particles.push({
+      kind: "juice",
+      x: s.x, y: s.y,
+      vx: Math.cos(a) * speed,
+      vy: Math.sin(a) * speed,
+      r: 2 + Math.random() * 3,
+      life: 0.6 + Math.random() * 0.5,
+      max: 1.1,
+      color: s.color,
+    });
+  }
+}
+
+function bombBurst(x, y) {
+  for (let i = 0; i < 60; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const speed = 200 + Math.random() * 500;
+    state.particles.push({
+      kind: "juice",
+      x, y,
+      vx: Math.cos(a) * speed,
+      vy: Math.sin(a) * speed,
+      r: 2 + Math.random() * 4,
+      life: 0.7 + Math.random() * 0.5,
+      max: 1.2,
+      color: [Math.random() < 0.5 ? "#ff5764" : "#ffd47a", "#1a1a25"],
+    });
+  }
+}
+
+function showCombo() {
+  if (state.combo < 2) return;
+  const el = document.getElementById("combo");
+  const num = document.getElementById("comboNum");
+  num.textContent = "×" + state.combo;
+  num.style.animation = "none";
+  void num.offsetWidth;
+  num.style.animation = "";
+  el.classList.remove("hidden");
+}
+function hideCombo() {
+  document.getElementById("combo").classList.add("hidden");
+}
+function showFloatScore(x, y, text) {
+  const el = document.createElement("div");
+  el.style.position = "fixed";
+  el.style.left = x + "px";
+  el.style.top = y + "px";
+  el.style.color = "#ffd47a";
+  el.style.fontWeight = "800";
+  el.style.fontSize = "20px";
+  el.style.textShadow = "0 0 8px rgba(0,0,0,0.8)";
+  el.style.pointerEvents = "none";
+  el.style.zIndex = "8";
+  el.style.animation = "rise 0.9s ease-out forwards";
+  el.textContent = text;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 900);
+}
+const styleSheet = document.createElement("style");
+styleSheet.textContent = `@keyframes rise { from { transform: translateY(0); opacity: 1; } to { transform: translateY(-50px); opacity: 0; } }`;
+document.head.appendChild(styleSheet);
+
+// ---------- Update / draw ----------
+let last = 0;
+function loop(ts) {
+  const dt = Math.min(0.04, (ts - last) / 1000 || 0);
+  last = ts;
+  if (state.running) update(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+
+function update(dt) {
+  // Gravity for shapes.
+  const g = 1100;
+  for (const s of state.shapes) {
+    if (!s.alive) continue;
+    s.vy += g * dt;
+    s.x += s.vx * dt;
+    s.y += s.vy * dt;
+    s.rot += s.vrot * dt;
+    // Bombs are heavier so feel different.
+    if (s.kind === "bomb") s.vy += 200 * dt;
+  }
+  // Drop missed shapes.
+  state.shapes = state.shapes.filter(s => {
+    if (s.y > H + 80 && s.alive) {
+      if (s.kind !== "bomb") {
+        // Missed a fruit in non-zen modes (life or combo cost).
+        if (state.mode !== "zen") {
+          state.combo = 0;
+          state.comboTimer = 0;
+          if (state.mode === "classic" || state.mode === "arcade") {
+            // Lose nothing (only bombs lose life), but stats track miss.
+          }
+        }
+        state.stats.missed++;
+        SFX.miss();
+        updateHud();
+      }
+      return false;
+    }
+    return s.y < H + 80;
+  });
+
+  // Combo decay.
+  if (state.comboTimer > 0) {
+    state.comboTimer -= dt;
+    if (state.comboTimer <= 0) {
+      state.combo = 0;
+      hideCombo();
+    }
+  }
+
+  // Particles.
+  for (let i = state.particles.length - 1; i >= 0; i--) {
+    const p = state.particles[i];
+    p.life -= dt;
+    if (p.life <= 0) { state.particles.splice(i, 1); continue; }
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    if (p.kind === "half") {
+      p.vy += 1100 * dt;
+      p.rot += p.vrot * dt;
+    } else {
+      p.vy += 600 * dt;
+      p.vx *= 0.99;
+    }
+  }
+
+  // Spawn.
+  state.spawnTimer -= dt;
+  if (state.spawnTimer <= 0) {
+    // Spawn 1-3 shapes in a quick group.
+    const count = 1 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < count; i++) {
+      setTimeout(() => spawnShape(), i * 80);
+    }
+    // Difficulty curve: in arcade/classic, spawn rate increases with score.
+    const rate = state.mode === "zen" ? 0.9 : Math.max(0.4, 1.0 - state.score * 0.001);
+    state.spawnTimer = rate;
+  }
+
+  // Time-based modes.
+  if (state.mode === "classic") {
+    const elapsed = (performance.now() - state.startTime) / 1000;
+    state.time = Math.max(0, 60 - elapsed);
+    if (state.time <= 0) endGame();
+  } else {
+    state.time = (performance.now() - state.startTime) / 1000;
+  }
+  updateHud();
+
+  if (state.shake > 0) state.shake = Math.max(0, state.shake - dt * 3);
+}
+
+function draw() {
+  ctx.save();
+  if (state.shake > 0) {
+    const s = state.shake * 12;
+    ctx.translate((Math.random() - 0.5) * s, (Math.random() - 0.5) * s);
+  }
+  ctx.clearRect(-30, -30, W + 60, H + 60);
+
+  // Faint vignette.
+  const grd = ctx.createRadialGradient(W * 0.5, H * 0.5, 0, W * 0.5, H * 0.5, Math.max(W, H) * 0.7);
+  grd.addColorStop(0, "rgba(0,0,0,0)");
+  grd.addColorStop(1, "rgba(0,0,0,0.5)");
+  ctx.fillStyle = grd;
+  ctx.fillRect(0, 0, W, H);
+
+  // Particles (juice + halves).
+  for (const p of state.particles) {
+    const a = Math.max(0, p.life / p.max);
+    if (p.kind === "half") {
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      // Half-circle face.
+      ctx.beginPath();
+      ctx.arc(0, 0, p.r, 0, Math.PI, p.side === 1);
+      ctx.closePath();
+      const grad = ctx.createLinearGradient(-p.r, -p.r, p.r, p.r);
+      grad.addColorStop(0, p.color[0]);
+      grad.addColorStop(1, p.color[1]);
+      ctx.fillStyle = grad;
+      ctx.globalAlpha = a;
+      ctx.shadowBlur = 16;
+      ctx.shadowColor = p.color[0];
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      // Inner pulp.
+      ctx.beginPath();
+      ctx.arc(0, 0, p.r * 0.6, 0, Math.PI, p.side === 1);
+      ctx.closePath();
+      ctx.fillStyle = "#fff8";
+      ctx.fill();
+      ctx.restore();
+    } else {
+      ctx.globalAlpha = a;
+      const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r);
+      grad.addColorStop(0, p.color[0]);
+      grad.addColorStop(1, p.color[1]);
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.globalAlpha = 1;
+
+  // Shapes.
+  for (const s of state.shapes) {
+    if (!s.alive) continue;
+    drawShape(s);
+  }
+
+  // Slice trail.
+  if (state.trail.length >= 2) {
+    const now = performance.now();
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    for (let i = 1; i < state.trail.length; i++) {
+      const a = state.trail[i - 1];
+      const b = state.trail[i];
+      const age = (now - b.t) / 200;
+      const alpha = Math.max(0, 1 - age);
+      const w = 12 * alpha;
+      ctx.strokeStyle = `rgba(255, 240, 200, ${alpha * 0.9})`;
+      ctx.shadowBlur = 18 * alpha;
+      ctx.shadowColor = "#ffd47a";
+      ctx.lineWidth = w;
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.stroke();
+    }
+    ctx.shadowBlur = 0;
+  }
+
+  ctx.restore();
+}
+
+function drawShape(s) {
+  ctx.save();
+  ctx.translate(s.x, s.y);
+  ctx.rotate(s.rot);
+
+  if (s.kind === "bomb") {
+    // Black sphere with red fuse spark.
+    const grad = ctx.createRadialGradient(-s.r * 0.3, -s.r * 0.3, s.r * 0.1, 0, 0, s.r);
+    grad.addColorStop(0, "#444");
+    grad.addColorStop(0.7, "#1a1a25");
+    grad.addColorStop(1, "#000");
+    ctx.fillStyle = grad;
+    ctx.shadowBlur = 22;
+    ctx.shadowColor = "#ff3d3d";
+    ctx.beginPath();
+    ctx.arc(0, 0, s.r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    // Fuse line.
+    ctx.strokeStyle = "#5a4a2a";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(0, -s.r);
+    ctx.quadraticCurveTo(s.r * 0.5, -s.r * 1.4, s.r * 0.7, -s.r * 1.5);
+    ctx.stroke();
+    // Spark at end of fuse.
+    const sx = s.r * 0.7, sy = -s.r * 1.5;
+    const sr = 4 + Math.random() * 4;
+    const sg = ctx.createRadialGradient(sx, sy, 0, sx, sy, sr * 3);
+    sg.addColorStop(0, "#fff");
+    sg.addColorStop(0.5, "#ffd47a");
+    sg.addColorStop(1, "rgba(255,80,30,0)");
+    ctx.fillStyle = sg;
+    ctx.beginPath();
+    ctx.arc(sx, sy, sr * 3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    return;
+  }
+
+  // Fruit / golden.
+  const grad = ctx.createRadialGradient(-s.r * 0.4, -s.r * 0.4, s.r * 0.1, 0, 0, s.r);
+  grad.addColorStop(0, "#fff8");
+  grad.addColorStop(0.4, s.color[0]);
+  grad.addColorStop(1, s.color[1]);
+  ctx.fillStyle = grad;
+  ctx.shadowBlur = s.kind === "golden" ? 30 : 14;
+  ctx.shadowColor = s.color[0];
+  ctx.beginPath();
+  ctx.arc(0, 0, s.r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // Highlight.
+  ctx.fillStyle = "#fff5";
+  ctx.beginPath();
+  ctx.arc(-s.r * 0.4, -s.r * 0.4, s.r * 0.25, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Star sparkle for golden.
+  if (s.kind === "golden") {
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let i = 0; i < 4; i++) {
+      const a = (i / 4) * Math.PI * 2;
+      ctx.moveTo(Math.cos(a) * s.r * 0.4, Math.sin(a) * s.r * 0.4);
+      ctx.lineTo(Math.cos(a) * s.r * 1.05, Math.sin(a) * s.r * 1.05);
+    }
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+function updateHud() {
+  document.getElementById("score").textContent = state.score;
+  document.getElementById("best").textContent = state.best;
+  document.getElementById("lives").textContent = "♥".repeat(Math.max(0, state.lives)) || "—";
+  if (state.mode === "classic") {
+    document.getElementById("modeLbl").textContent = "Time";
+    document.getElementById("time").textContent = Math.ceil(state.time);
+  } else {
+    document.getElementById("modeLbl").textContent = "Time";
+    const t = Math.floor(state.time);
+    const m = Math.floor(t / 60), s = t % 60;
+    document.getElementById("time").textContent = m + ":" + String(s).padStart(2, "0");
+  }
+}
+
+// ---------- Game flow ----------
+function startGame(mode) {
+  ensureAudio();
+  state.mode = mode;
+  state.running = true;
+  state.score = 0;
+  state.lives = mode === "zen" ? 999 : 3;
+  state.time = mode === "classic" ? 60 : 0;
+  state.shapes = [];
+  state.particles = [];
+  state.combo = 0;
+  state.comboTimer = 0;
+  state.spawnTimer = 0;
+  state.shake = 0;
+  state.stats = { sliced: 0, missed: 0, golden: 0, bestCombo: 0 };
+  state.startTime = performance.now();
+  document.getElementById("titleScreen").classList.add("hidden");
+  document.getElementById("overScreen").classList.add("hidden");
+  hideCombo();
+  // Hide lives for Zen.
+  document.querySelector(".stat.lives").style.display = mode === "zen" ? "none" : "";
+  SFX.start();
+  updateHud();
+}
+
+function endGame() {
+  state.running = false;
+  if (state.score > state.best) {
+    state.best = state.score;
+    try { localStorage.setItem("slice_best", String(state.best)); } catch (e) {}
+  }
+  SFX.over();
+  // Build final stats.
+  const fs = document.getElementById("finalStats");
+  const elapsed = Math.floor((performance.now() - state.startTime) / 1000);
+  const m = Math.floor(elapsed / 60), s = elapsed % 60;
+  const accuracy = state.stats.sliced + state.stats.missed > 0
+    ? Math.round((state.stats.sliced / (state.stats.sliced + state.stats.missed)) * 100)
+    : 0;
+  fs.innerHTML = `
+    <span class="lbl">Score</span><span class="val">${state.score}</span>
+    <span class="lbl">Sliced</span><span class="val">${state.stats.sliced}</span>
+    <span class="lbl">Missed</span><span class="val">${state.stats.missed}</span>
+    <span class="lbl">Best Combo</span><span class="val">×${state.stats.bestCombo}</span>
+    <span class="lbl">Golden</span><span class="val">${state.stats.golden}</span>
+    <span class="lbl">Time</span><span class="val">${m}m ${s}s</span>
+    <span class="lbl">Accuracy</span><span class="val">${accuracy}%</span>
+    <span class="lbl">Best Score</span><span class="val">${state.best}</span>
+  `;
+  setTimeout(() => {
+    document.getElementById("overScreen").classList.remove("hidden");
+  }, 700);
+}
+
+// Mode buttons.
+document.querySelectorAll(".mode").forEach(btn => {
+  btn.addEventListener("click", () => startGame(btn.dataset.mode));
+});
+document.getElementById("againBtn").addEventListener("click", () => {
+  document.getElementById("overScreen").classList.add("hidden");
+  document.getElementById("titleScreen").classList.remove("hidden");
+});
+
+// Boot.
+updateHud();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
